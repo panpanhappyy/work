@@ -49,19 +49,23 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 	// 关卡信息
 	int level = 1; // 当前关卡
 	int targetFood = 5; // 当前关卡需要吃的食物数量
-	int eatenFood = 0; // 当前关卡已吃食物数量
+	int eatenFood = 0; // 已经吃的食物数量
 	int countdown = 30; // 关卡倒计时（秒）
 	int score = 0; // 得分
-	boolean isLevelComplete = false; // 关卡是否完成
+
+	// 弹窗状态
+	boolean showLevelUpPopup = false; // 是否显示通关弹窗
+	boolean showGameOverPopup = false; // 是否显示失败弹窗
 
 	// 存档文件路径
-	private static final String SAVE_FILE_PATH = "snake_save.dat";
+	private static final String SAVE_FILE_PATH = "snake_save.txt";
 
 	// ��ʼ����
 	public void initSnake() {
 		isStarted = false;
 		isFaild = false;
-		isLevelComplete = false;
+		showLevelUpPopup = false;
+		showGameOverPopup = false;
 		len = 3;
 		direction = "R";
 		snakex[0] = 100;
@@ -70,7 +74,7 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 		snakey[1] = 100;
 		snakex[2] = 50;
 		snakey[2] = 100;
-		// 重置关卡和得分
+		// 重置关卡信息
 		level = 1;
 		targetFood = 5;
 		eatenFood = 0;
@@ -82,31 +86,24 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 
 	public SnakePanel() {
 		this.setFocusable(true);
-		// 检查是否有存档并询问是否恢复
-		if (hasSaveFile() && showLoadConfirmation()) {
-			loadGame();
+		// 检查是否有存档文件
+		if (hasSaveFile()) {
+			// 询问是否恢复上次存档
+			int option = JOptionPane.showConfirmDialog(this, "是否恢复上次存档?", "恢复存档", JOptionPane.YES_NO_OPTION);
+			if (option == JOptionPane.YES_OPTION) {
+				loadGame();
+			} else {
+				initSnake(); // ���þ�̬�ߣ�
+			}
 		} else {
 			initSnake(); // ���þ�̬�ߣ�
 		}
 		this.addKeyListener(this);// ���ӿ�
 		timer.start();
-		countdownTimer.start();
 	}
 
 	// �������ƶ��ٶ�
 	Timer timer = new Timer(150, this);
-	// 倒计时计时器
-	Timer countdownTimer = new Timer(1000, new ActionListener() {
-		@Override
-		public void actionPerformed(ActionEvent e) {
-			if (isStarted && !isFaild && !isLevelComplete && countdown > 0) {
-				countdown--;
-				if (countdown <= 0) {
-					isFaild = true;
-				}
-			}
-		}
-	});
 
 	public void paint(Graphics g) {
 		// ���ñ�����ɫ
@@ -116,14 +113,12 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 		title.paintIcon(this, g, 25, 11);
 
 		// 绘制关卡信息面板
-		g.setColor(Color.GRAY);
-		g.fillRect(650, 11, 225, 60);
 		g.setColor(Color.WHITE);
-		g.setFont(new Font("arial", Font.BOLD, 14));
-		g.drawString("Level: " + level, 660, 30);
-		g.drawString("Food: " + eatenFood + "/" + targetFood, 660, 48);
-		g.drawString("Time: " + countdown + "s", 660, 66);
-		g.drawString("Score: " + score, 780, 30);
+		g.setFont(new Font("arial", Font.BOLD, 18));
+		g.drawString("Level: " + level, 700, 30);
+		g.drawString("Target: " + eatenFood + "/" + targetFood, 700, 50);
+		g.drawString("Time: " + countdown + "s", 700, 70);
+		g.drawString("Score: " + score, 700, 90);
 
 		// ����ͷ
 		if (direction.equals("R")) {
@@ -148,33 +143,51 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 		}
 		// ��ʧ����ʾ��
 		if (isFaild) {
-			// 绘制失败弹窗
-			g.setColor(new Color(0, 0, 0, 150));
-			g.fillRect(25, 75, 850, 600);
-			g.setColor(Color.RED);
-			g.fillRect(300, 250, 300, 150);
 			g.setColor(Color.WHITE);
-			g.setFont(new Font("arial", Font.BOLD, 20));
-			g.drawString("Game Over!", 400, 300);
-			g.drawString("Final Score: " + score, 380, 330);
-			g.drawString("Press Space to Retry", 360, 360);
-		}
-		// 关卡完成弹窗
-		if (isLevelComplete) {
-			g.setColor(new Color(0, 0, 0, 150));
-			g.fillRect(25, 75, 850, 600);
-			g.setColor(Color.GREEN);
-			g.fillRect(300, 250, 300, 150);
-			g.setColor(Color.WHITE);
-			g.setFont(new Font("arial", Font.BOLD, 20));
-			g.drawString("Level " + level + " Complete!", 360, 300);
-			g.drawString("Advance to Level " + (level + 1), 350, 330);
-			g.drawString("Press Space to Continue", 340, 360);
+			g.setFont(new Font("arial", Font.BOLD, 30));
+			g.drawString("Game Over,Press Space to Start", 230, 350);
 		}
 
 		// ��ʳ��
 		food.paintIcon(this, g, foodx, foody);
 
+		// 绘制通关弹窗
+		if (showLevelUpPopup) {
+			g.setColor(new Color(0, 0, 0, 150));
+			g.fillRect(0, 0, 900, 720);
+			g.setColor(Color.WHITE);
+			g.fillRect(300, 250, 300, 200);
+			g.setColor(Color.BLACK);
+			g.setFont(new Font("arial", Font.BOLD, 24));
+			g.drawString("Congratulations!", 360, 320);
+			g.drawString("Level " + level + " Completed!", 340, 350);
+			g.drawString("Next Level: " + (level + 1), 350, 380);
+			// 绘制下一关按钮
+			g.setColor(Color.GREEN);
+			g.fillRect(380, 400, 140, 40);
+			g.setColor(Color.WHITE);
+			g.setFont(new Font("arial", Font.BOLD, 18));
+			g.drawString("Next Level", 410, 425);
+		}
+
+		// 绘制失败弹窗
+		if (showGameOverPopup) {
+			g.setColor(new Color(0, 0, 0, 150));
+			g.fillRect(0, 0, 900, 720);
+			g.setColor(Color.WHITE);
+			g.fillRect(300, 250, 300, 200);
+			g.setColor(Color.BLACK);
+			g.setFont(new Font("arial", Font.BOLD, 24));
+			g.drawString("Game Over", 370, 320);
+			g.drawString("Final Score: " + score, 350, 350);
+			g.drawString("Level Reached: " + level, 345, 380);
+			// 绘制重新挑战按钮
+			g.setColor(Color.RED);
+			g.fillRect(380, 400, 140, 40);
+			g.setColor(Color.WHITE);
+			g.setFont(new Font("arial", Font.BOLD, 18));
+			g.drawString("Try Again", 415, 425);
+		}
 	}
 
 	@Override
@@ -191,18 +204,16 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 		if (keyCode == KeyEvent.VK_SPACE) {
 			if (isFaild) {
 				initSnake();
-				deleteSaveFile(); // 游戏失败后删除存档
-			} else if (isLevelComplete) {
-				// 进入下一关
-				nextLevel();
-				deleteSaveFile(); // 通关后删除存档
+				// 删除存档文件
+				deleteSaveFile();
 			} else {
-				isStarted = !isStarted;
-				if (!isStarted) {
-					// 暂停时自动存档
+				// 暂停时自动存档
+				if (isStarted) {
 					saveGame();
 				}
+				isStarted = !isStarted;
 			}
+			// repaint();
 		} // ʵ��ת��
 		else if (keyCode == KeyEvent.VK_UP && !direction.equals("D")) {
 			direction = "U";
@@ -212,6 +223,21 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 			direction = "L";
 		} else if (keyCode == KeyEvent.VK_RIGHT && !direction.equals("L")) {
 			direction = "R";
+		}
+
+		// 处理弹窗按键
+		if (showLevelUpPopup || showGameOverPopup) {
+			if (keyCode == KeyEvent.VK_ENTER || keyCode == KeyEvent.VK_SPACE) {
+				if (showLevelUpPopup) {
+					nextLevel();
+					// 删除存档文件
+					deleteSaveFile();
+				} else if (showGameOverPopup) {
+					initSnake();
+					// 删除存档文件
+					deleteSaveFile();
+				}
+			}
 		}
 
 	}
@@ -229,9 +255,19 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 	 */
 	@Override
 	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
 		timer.start();
 
-		if (isStarted && !isFaild && !isLevelComplete) {
+		if (isStarted && !isFaild && !showLevelUpPopup && !showGameOverPopup) {
+			// 倒计时
+			countdown--;
+
+			// 检查倒计时是否结束
+			if (countdown <= 0) {
+				showGameOverPopup = true;
+				isStarted = false;
+			}
+
 			// �ƶ�����
 			for (int i = len; i > 0; i--) {
 				snakex[i] = snakex[i - 1];
@@ -243,6 +279,7 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 				snakex[0] = snakex[0] + 25;
 				if (snakex[0] > 850)
 					snakex[0] = 25;
+
 			} else if (direction.equals("L")) {
 				// ������-25
 				snakex[0] = snakex[0] - 25;
@@ -264,19 +301,21 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 				len++;
 				eatenFood++;
 				score += 10;
-				countdown += 2; // 每吃一个食物增加2秒
+				countdown += 2; // 每吃一个食物增加2秒倒计时
 				foodx = r.nextInt(34) * 25 + 25;
 				foody = r.nextInt(24) * 25 + 75;
 
-				// 检查是否完成关卡
+				// 检查是否完成当前关卡
 				if (eatenFood >= targetFood) {
-					isLevelComplete = true;
+					showLevelUpPopup = true;
+					isStarted = false;
 				}
 			}
 			// �ж���Ϸʧ��
 			for (int i = 1; i < len; i++) {
 				if (snakex[0] == snakex[i] && snakey[0] == snakey[i]) {
-					isFaild = true;
+					showGameOverPopup = true;
+					isStarted = false;
 				}
 			}
 		}
@@ -284,100 +323,95 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 	}
 
 	// 进入下一关
-	private void nextLevel() {
+	public void nextLevel() {
 		level++;
-		targetFood += 3; // 每关增加3个食物目标
+		targetFood += 3; // 每关食物目标数+3
 		eatenFood = 0;
-		countdown = 30 + (level - 1) * 5; // 每升一级增加5秒
-		isLevelComplete = false;
+		countdown = 30 + (level - 1) * 5; // 初始30秒，每升1级增加5秒
+		showLevelUpPopup = false;
 		isStarted = true;
 
-		// 提升蛇的移动速度（最多减少到50毫秒）
-		int newDelay = Math.max(50, 150 - (level - 1) * 10);
-		timer.setDelay(newDelay);
-
-		// 重置食物位置
-		foodx = r.nextInt(34) * 25 + 25;
-		foody = r.nextInt(24) * 25 + 75;
+		// 提升蛇的移动速度（减少计时器延迟）
+		if (timer.getDelay() > 50) { // 最小延迟为50毫秒
+			timer.setDelay(timer.getDelay() - 10);
+		}
 	}
 
-	// 检查是否存在存档文件
+	// 检查是否有存档文件
 	private boolean hasSaveFile() {
 		File saveFile = new File(SAVE_FILE_PATH);
-		return saveFile.exists() && saveFile.length() > 0;
+		return saveFile.exists() && saveFile.isFile();
 	}
 
-	// 显示是否恢复存档的确认对话框
-	private boolean showLoadConfirmation() {
-		int option = JOptionPane.showConfirmDialog(
-				this,
-				"检测到存档文件，是否恢复上次游戏？",
-				"恢复游戏",
-				JOptionPane.YES_NO_OPTION,
-				JOptionPane.QUESTION_MESSAGE);
-		return option == JOptionPane.YES_OPTION;
-	}
-
-	// 保存游戏状态到本地文件
+	// 保存游戏状态
 	private void saveGame() {
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(SAVE_FILE_PATH))) {
-			// 保存基本游戏状态
+			// 保存关卡信息
 			writer.write(level + "\n");
 			writer.write(score + "\n");
+			writer.write(targetFood + "\n");
+			writer.write(eatenFood + "\n");
+			writer.write(countdown + "\n");
+			writer.write(timer.getDelay() + "\n");
+
+			// 保存蛇的状态
 			writer.write(len + "\n");
 			writer.write(direction + "\n");
-			writer.write(countdown + "\n");
-			writer.write(eatenFood + "\n");
-			writer.write(targetFood + "\n");
-			writer.write(timer.getDelay() + "\n");
-			writer.write(foodx + "\n");
-			writer.write(foody + "\n");
-
-			// 保存蛇身坐标
 			for (int i = 0; i < len; i++) {
 				writer.write(snakex[i] + "," + snakey[i] + "\n");
 			}
 
-			System.out.println("游戏已存档");
+			// 保存食物位置
+			writer.write(foodx + "\n");
+			writer.write(foody + "\n");
+
+			// 保存游戏状态
+			writer.write(isStarted + "\n");
+			writer.write(isFaild + "\n");
+			writer.write(showLevelUpPopup + "\n");
+			writer.write(showGameOverPopup + "\n");
+
+			System.out.println("游戏已保存");
 		} catch (IOException e) {
-			System.err.println("存档失败: " + e.getMessage());
+			System.err.println("保存游戏失败: " + e.getMessage());
 		}
 	}
 
-	// 从本地文件加载游戏状态
+	// 加载游戏状态
 	private void loadGame() {
 		try (BufferedReader reader = new BufferedReader(new FileReader(SAVE_FILE_PATH))) {
-			// 加载基本游戏状态
+			// 加载关卡信息
 			level = Integer.parseInt(reader.readLine());
 			score = Integer.parseInt(reader.readLine());
+			targetFood = Integer.parseInt(reader.readLine());
+			eatenFood = Integer.parseInt(reader.readLine());
+			countdown = Integer.parseInt(reader.readLine());
+			int delay = Integer.parseInt(reader.readLine());
+			timer.setDelay(delay);
+
+			// 加载蛇的状态
 			len = Integer.parseInt(reader.readLine());
 			direction = reader.readLine();
-			countdown = Integer.parseInt(reader.readLine());
-			eatenFood = Integer.parseInt(reader.readLine());
-			targetFood = Integer.parseInt(reader.readLine());
-			int delay = Integer.parseInt(reader.readLine());
-			foodx = Integer.parseInt(reader.readLine());
-			foody = Integer.parseInt(reader.readLine());
-
-			// 加载蛇身坐标
 			for (int i = 0; i < len; i++) {
 				String[] coordinates = reader.readLine().split(",");
 				snakex[i] = Integer.parseInt(coordinates[0]);
 				snakey[i] = Integer.parseInt(coordinates[1]);
 			}
 
-			// 设置计时器延迟
-			timer.setDelay(delay);
+			// 加载食物位置
+			foodx = Integer.parseInt(reader.readLine());
+			foody = Integer.parseInt(reader.readLine());
 
-			// 设置游戏状态
-			isStarted = false; // 加载后处于暂停状态
-			isFaild = false;
-			isLevelComplete = false;
+			// 加载游戏状态
+			isStarted = Boolean.parseBoolean(reader.readLine());
+			isFaild = Boolean.parseBoolean(reader.readLine());
+			showLevelUpPopup = Boolean.parseBoolean(reader.readLine());
+			showGameOverPopup = Boolean.parseBoolean(reader.readLine());
 
-			System.out.println("游戏已恢复");
+			System.out.println("游戏已加载");
 		} catch (IOException | NumberFormatException e) {
-			System.err.println("读档失败: " + e.getMessage());
-			// 读档失败时初始化新游戏
+			System.err.println("加载游戏失败: " + e.getMessage());
+			// 加载失败时初始化游戏
 			initSnake();
 		}
 	}
@@ -385,8 +419,12 @@ public class SnakePanel extends JPanel implements KeyListener, ActionListener {
 	// 删除存档文件
 	private void deleteSaveFile() {
 		File saveFile = new File(SAVE_FILE_PATH);
-		if (saveFile.exists() && saveFile.delete()) {
-			System.out.println("存档已删除");
+		if (saveFile.exists()) {
+			if (saveFile.delete()) {
+				System.out.println("存档已删除");
+			} else {
+				System.err.println("删除存档失败");
+			}
 		}
 	}
 }
